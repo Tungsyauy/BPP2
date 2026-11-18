@@ -169,8 +169,26 @@ function prefersFlatsForKey(key, chordType = null) {
 }
 
 // Note transposition - EXACT MATCH TO PYTHON transpose_note function
+// G-generation (Dm, G7, Bø7): flats except C# and F#; C-generation (Gm, C7, Eø7): flats except F#
+const SEVENSUS4_SPELLING_BY_GENERATION_KEY = {
+    G: { sharpPitchClasses: new Set([1, 6]) },
+    C: { sharpPitchClasses: new Set([6]) },
+};
+
+function spell7sus4Accidental(newPitch, generationKey, chordType) {
+    const profile = SEVENSUS4_SPELLING_BY_GENERATION_KEY[generationKey];
+    if (!profile || !chordType || !["minor", "dominant", "half_dim"].includes(chordType)) {
+        return null;
+    }
+    if (profile.sharpPitchClasses.has(newPitch)) {
+        return PITCH_CLASSES_SHARP[newPitch];
+    }
+    return PITCH_CLASSES_FLAT[newPitch];
+}
+
 // Optional chordType selects 7sus4 display-key sharp/flat preference
-function transposeNote(note, semitones, key, chordType = null) {
+// generationKey (optional): 7sus4 phrase source key (e.g. G → Dm/G7/Bø7 spelling group)
+function transposeNote(note, semitones, key, chordType = null, generationKey = null) {
     const [pitchClass, octave] = noteToPitch(note);
     
     // Handle invalid notes
@@ -182,6 +200,11 @@ function transposeNote(note, semitones, key, chordType = null) {
     // Fix JavaScript modulo behavior for negative numbers
     const newPitch = ((pitchClass + semitones) % 12 + 12) % 12;
     const newOctave = octave + Math.floor((pitchClass + semitones) / 12);
+
+    const sevenSus4Spelling = spell7sus4Accidental(newPitch, generationKey, chordType);
+    if (sevenSus4Spelling) {
+        return `${sevenSus4Spelling}${newOctave}`;
+    }
     
     const useFlats = prefersFlatsForKey(key, chordType);
     const pitchClasses = useFlats ? PITCH_CLASSES_FLAT : PITCH_CLASSES_SHARP;

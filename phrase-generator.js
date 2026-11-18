@@ -418,8 +418,10 @@ function generatePhrase(phraseType = "7sus4", selectedKey = null, chordType = nu
             // For 7sus4 chord types, spell accidentals by display key + chord type
             let noteSpellingKey = spellingKey || keyName;
             let noteChordType = chordType;
+            let noteGenerationKey = null;
             if ((phraseType === "7sus4" || phraseType === "long_7sus4") &&
                 noteChordType && ["minor", "dominant", "half_dim"].includes(noteChordType)) {
+                noteGenerationKey = keyName;
                 if (!spellingKey && typeof find_7sus4_target_key_for_display === "function") {
                     noteSpellingKey = find_7sus4_target_key_for_display(keyName, noteChordType);
                 }
@@ -427,7 +429,7 @@ function generatePhrase(phraseType = "7sus4", selectedKey = null, chordType = nu
                 noteChordType = null; // keep legacy spelling for non-7sus4 chord-type paths
             }
             const transposedPhrase = phrase.map(note =>
-                transposeNote(note, transpositionSemitones, noteSpellingKey, noteChordType)
+                transposeNote(note, transpositionSemitones, noteSpellingKey, noteChordType, noteGenerationKey)
             );
             
             // Validate resolution cell

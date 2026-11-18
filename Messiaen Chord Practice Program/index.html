@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Chord Practice - Messiaen</title>
+    <link rel="stylesheet" href="styles.css?v=2.1">
+    <script src="https://unpkg.com/abcjs@6.4.0/dist/abcjs-basic.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Welcome Screen -->
+        <div id="welcome-screen" class="screen">
+            <h1 class="title">Chord Practice</h1>
+            <div class="welcome-grid">
+                <button id="start-btn" class="nav-btn">Start Practice</button>
+            </div>
+            <div class="footer">
+                <div class="attribution">
+                    <p>Made by tsy</p>
+                    <p>Contact: tungsyauy@gmail.com</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode Selection Screen -->
+        <div id="mode-screen" class="screen hidden">
+            <h2 class="screen-title">Choose Mode</h2>
+            <div class="mode-grid">
+                <button id="mode-ii-btn" class="nav-btn">Mode II</button>
+                <button id="mode-iii-btn" class="nav-btn">Mode III</button>
+                <button id="mode-ad-btn" class="nav-btn">Mode AD</button>
+            </div>
+            <div class="return-arrow" id="mode-return"><span class="triangle-left"></span></div>
+            <div class="footer">
+                <div class="attribution">
+                    <p>Made by tsy</p>
+                    <p>Contact: tungsyauy@gmail.com</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chord Category Selection Screen -->
+        <div id="chord-category-screen" class="screen hidden">
+            <h2 class="screen-title" id="chord-category-title">Choose Chord Type</h2>
+            <div class="chord-category-grid" id="chord-category-grid">
+                <!-- Dynamic content based on selected mode -->
+            </div>
+            <div class="return-arrow" id="chord-category-return"><span class="triangle-left"></span></div>
+            <div class="footer">
+                <div class="attribution">
+                    <p>Made by tsy</p>
+                    <p>Contact: tungsyauy@gmail.com</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chord Practice Screen -->
+        <div id="chord-practice-screen" class="screen hidden">
+            <div class="music-display">
+                <div id="chord-display" class="chord-display"></div>
+                <div id="notation" class="notation-container"></div>
+                <div id="key-display" class="key-display"></div>
+            </div>
+
+            <div class="controls">
+                <button id="generate-chord-btn" class="action-btn">Generate Chord</button>
+                <button id="neighbors-btn" class="action-btn">Neighbors</button>
+            </div>
+
+            <div class="transposition-display">
+                <strong>Mode Transposition:</strong> <span id="transposition-status-display">-</span>
+            </div>
+            
+            <div class="return-arrow" id="chord-practice-return"><span class="triangle-left"></span></div>
+            <div class="footer">
+                <div class="attribution">
+                    <p>Made by tsy</p>
+                    <p>Contact: tungsyauy@gmail.com</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html> 
+
+
+
+
+
+

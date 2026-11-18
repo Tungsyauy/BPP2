@@ -147,6 +147,8 @@ const BASE_CELLS2_ADDITIONAL = [
 
 // Base cells for major phrases (C major cells)
 const BASE_MAJOR_CELLS = [
+
+/*
     ["G4", "A4", "B4", "D5", "C5"],
     ["E4", "G4", "B4", "D5", "C5"],
     ["E4", "G4", "B4", "D5", "B4"],
@@ -195,6 +197,8 @@ const BASE_MAJOR_CELLS = [
     //["Eb4","E4","F4","Eb4","E4"],
     //["Eb4","E4","G4","F4","E4"],
     //["Eb4","E4","A4","Ab4","G4"]
+*/
+
 ];
 
 // Base cells for major resolution (C dominant resolving to F major)

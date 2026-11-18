@@ -33,7 +33,8 @@ def main():
         print(f"📁 Directory: {os.getcwd()}")
         print(f"🔗 Main page: http://localhost:{PORT}")
         print(f"🎼 Lines (Bebop): http://localhost:{PORT}/lines.html")
-        print(f"🎹 Voicings (Chords): http://localhost:{PORT}/Chord%20Practice%20Program/")
+        print(f"🎹 Voicings: http://localhost:{PORT}/Chord%20Practice%20Program/")
+        print(f"🎼 Messiaen Voicings: http://localhost:{PORT}/Messiaen%20Chord%20Practice%20Program/?embedded=1")
         print(f"\n⚡ Press Ctrl+C to stop the server")
         print("-" * 60)
         
