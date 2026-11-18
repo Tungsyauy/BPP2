@@ -165,89 +165,6 @@ function setupEventListeners() {
         showScreen('length');
     });
 
-    document.getElementById('side-step-25-btn').addEventListener('click', () => {
-        console.log('side-step-25 button clicked');
-        appState.phraseType = 'side_step_25';
-        appState.chordType = null; // Reset chord type
-        console.log('App state after side-step-25 selection:', appState);
-        navigateToGenerator();
-    });
-
-    document.getElementById('turnaround-btn').addEventListener('click', () => {
-        appState.phraseType = 'turnaround';
-        navigateToGenerator();
-    });
-
-    document.getElementById('rhythm-changes-btn').addEventListener('click', () => {
-        appState.phraseType = 'rhythm_changes_56';
-        navigateToGenerator();
-    });
-
-    document.getElementById('ii7-v7-btn').addEventListener('click', () => {
-        appState.phraseType = 'ii7_to_v7';
-        navigateToGenerator();
-    });
-
-            document.getElementById('biii-to-ii-btn').addEventListener('click', () => {
-            showScreen('biii-to-ii-type');
-        });
-
-    document.getElementById('i-dim-to-i-btn').addEventListener('click', () => {
-        showScreen('i-dim-to-i-type');
-    });
-
-    document.getElementById('backdoor-25-btn').addEventListener('click', () => {
-        appState.phraseType = 'backdoor_25';
-        showScreen('length');
-    });
-
-    document.getElementById('tritone-sub-25-btn').addEventListener('click', () => {
-        showScreen('tritone-sub-25-type');
-    });
-
-    // Tritone-sub 25 sub-type selection
-    document.getElementById('tritone-sub-25-major-btn').addEventListener('click', () => {
-        appState.phraseType = 'tritone_sub_25_major';
-        navigateToGenerator();
-    });
-
-    document.getElementById('tritone-sub-25-minor-btn').addEventListener('click', () => {
-        appState.phraseType = 'tritone_sub_25_minor';
-        navigateToGenerator();
-    });
-
-    document.getElementById('d7-to-db-btn').addEventListener('click', () => {
-        appState.phraseType = 'd7_to_db';
-        navigateToGenerator();
-    });
-
-    document.getElementById('iv-iv-btn').addEventListener('click', () => {
-        appState.phraseType = 'iv_iv';
-        showScreen('length');
-    });
-
-    // biii° to ii sub-type selection
-    document.getElementById('iii-to-biii-btn').addEventListener('click', () => {
-        appState.phraseType = 'iii_to_biii';
-        showScreen('length');
-    });
-
-    document.getElementById('vi-to-ii7b9-btn').addEventListener('click', () => {
-        appState.phraseType = 'biii_to_ii_old';
-        showScreen('length');
-    });
-
-    // i° to I sub-type selection
-    document.getElementById('iv7-to-iv-sharp-dim-btn').addEventListener('click', () => {
-        appState.phraseType = 'iv7_to_iv_sharp_dim';
-        showScreen('length');
-    });
-
-    document.getElementById('iv-sharp-half-dim-to-vii7-btn').addEventListener('click', () => {
-        appState.phraseType = 'iv_sharp_half_dim_to_vii7';
-        showScreen('length');
-    });
-
     // Chord type selection (7sus4)
     document.getElementById('minor-chord-btn').addEventListener('click', () => {
         console.log('minor chord button clicked');
@@ -267,13 +184,6 @@ function setupEventListeners() {
         console.log('half-dim chord button clicked');
         appState.chordType = 'half_dim';
         console.log('App state after half-dim chord selection:', appState);
-        showScreen('length');
-    });
-
-    document.getElementById('altered-chord-btn').addEventListener('click', () => {
-        console.log('altered chord button clicked');
-        appState.chordType = 'altered';
-        console.log('App state after altered chord selection:', appState);
         showScreen('length');
     });
 
@@ -922,7 +832,7 @@ function getFinalPhraseType(useRandomCycling = false) {
                 if (!window.random_7sus4_cycler) {
                     console.error('random_7sus4_cycler not initialized');
                     // Fallback to a simple random chord type selection
-                    const chordTypes = ['minor', 'dominant', 'half_dim', 'altered'];
+                    const chordTypes = ['minor', 'dominant', 'half_dim'];
                     const randomChordType = chordTypes[Math.floor(Math.random() * chordTypes.length)];
                     return `${baseType}_${randomChordType}`;
                 }
@@ -966,19 +876,23 @@ function getFinalPhraseType(useRandomCycling = false) {
 function generatePhraseData(phraseType, selectedKey) {
     console.log('generatePhraseData called with:', { phraseType, selectedKey, chordType: appState.chordType });
     
+    // Resolve chord type from phrase type suffix when present (handles random cycling)
+    let resolvedChordType = appState.chordType;
+    if (phraseType.startsWith("long_7sus4_")) {
+        resolvedChordType = phraseType.replace("long_7sus4_", "");
+    } else if (phraseType.startsWith("7sus4_")) {
+        resolvedChordType = phraseType.replace("7sus4_", "");
+    }
+    if (resolvedChordType === "random" || resolvedChordType === "mixed") {
+        resolvedChordType = null;
+    }
+    
     // Determine the key to use for generation (matching Python logic exactly)
     let effectiveKey;
     if (selectedKey) {
         // For designate mode, find the correct generation key
         if (phraseType.startsWith("7sus4") || phraseType.startsWith("long_7sus4")) {
-            // Extract chord type from phrase type
-            let chordType = appState.chordType;
-            if (phraseType.startsWith("long_7sus4_")) {
-                chordType = phraseType.replace("long_7sus4_", "");
-            } else if (phraseType.startsWith("7sus4_")) {
-                chordType = phraseType.replace("7sus4_", "");
-            }
-            effectiveKey = find_7sus4_generation_key(selectedKey, chordType);
+            effectiveKey = find_7sus4_generation_key(selectedKey, resolvedChordType);
         } else {
             effectiveKey = getDominantOrRelativeMajorKey(phraseType, selectedKey);
         }
@@ -997,8 +911,16 @@ function generatePhraseData(phraseType, selectedKey) {
         basePhraseType = "long_7sus4";
     }
     
+    // Display/spelling key: designate uses selected key; random uses mapped target key
+    let spellingKey = selectedKey || null;
+    if (!spellingKey && resolvedChordType &&
+        (basePhraseType === "7sus4" || basePhraseType === "long_7sus4") &&
+        typeof find_7sus4_target_key_for_display === "function") {
+        spellingKey = find_7sus4_target_key_for_display(effectiveKey, resolvedChordType);
+    }
+    
     // Generate the phrase
-    const phraseResult = generatePhrase(basePhraseType, effectiveKey, appState.chordType);
+    const phraseResult = generatePhrase(basePhraseType, effectiveKey, resolvedChordType, spellingKey);
     console.log('Phrase result from generatePhrase:', phraseResult);
     
     // Check if phrase generation was successful

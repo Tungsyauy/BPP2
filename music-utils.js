@@ -34,8 +34,143 @@ function noteToPitch(note) {
     return [pitchClasses[name], octave];
 }
 
+const EMPTY_CELL_MARKER = "x";
+
+function isEmptyCellMarker(token) {
+    return token === "x" || token === "X";
+}
+
+function getCellLastNote(cell) {
+    if (!cell || cell.length === 0) return null;
+    if (isEmptyCellMarker(cell[cell.length - 1])) {
+        return cell.length >= 2 ? cell[cell.length - 2] : null;
+    }
+    return cell[cell.length - 1];
+}
+
+function getCellFirstNote(cell) {
+    return cell && cell.length > 0 ? cell[0] : null;
+}
+
+function getCellLastPitchClass(cell) {
+    const note = getCellLastNote(cell);
+    return note ? note.slice(0, -1) : null;
+}
+
+function getCellFirstPitchClass(cell) {
+    const note = getCellFirstNote(cell);
+    return note ? note.slice(0, -1) : null;
+}
+
+function cellHasEmptyTail(cell) {
+    return !!cell && cell.length > 0 && isEmptyCellMarker(cell[cell.length - 1]);
+}
+
+function getCellPitchClasses(cell) {
+    if (cellHasEmptyTail(cell)) {
+        return cell.slice(0, -1).map(note => note.slice(0, -1)).concat(["x"]);
+    }
+    return cell.map(note => note.slice(0, -1));
+}
+
+// Phrase tail when last cell ends with empty marker (tied final note)
+function getResolutionTailPitchClasses(phrase) {
+    const tail = phrase.slice(-5);
+    if (tail.length === 5 && tail[3] && tail[4] === tail[3] && /\d$/.test(String(tail[4]))) {
+        return tail.slice(0, 4).map(note => note.slice(0, -1)).concat(["x"]);
+    }
+    return tail.map(note => note.slice(0, -1));
+}
+
+function expandCellToPhraseTail(cell) {
+    if (cellHasEmptyTail(cell)) {
+        const notes = cell.slice(0, -1);
+        const lastNote = notes[notes.length - 1];
+        return notes.concat([lastNote]);
+    }
+    return cell.slice();
+}
+
+function adjustCellOctavesFromPhraseTail(cell, phrase) {
+    const tail = phrase.slice(-5);
+    if (!tail.length) return cell.slice();
+    const refOctave = noteToPitch(tail[0])[1];
+    const [, cellFirstOctave] = noteToPitch(cell[0]);
+
+    return cell.map(note => {
+        if (isEmptyCellMarker(note)) return note;
+        const [, octave] = noteToPitch(note);
+        const name = note.slice(0, -1);
+        const newOctave = refOctave + (octave - cellFirstOctave);
+        return `${name}${newOctave}`;
+    });
+}
+
+function expandLeftPartForAppend(leftPart) {
+    if (Array.isArray(leftPart) && cellHasEmptyTail(leftPart)) {
+        const body = leftPart.slice(0, -1);
+        const lastNote = body[body.length - 1];
+        return body.concat([lastNote]);
+    }
+    return leftPart;
+}
+
+// Join cells/phrase: right cell after left (time forward)
+function appendCell(leftPart, rightCell) {
+    if (!rightCell || rightCell.length === 0) {
+        return expandLeftPartForAppend(leftPart);
+    }
+
+    const leftNotes = Array.isArray(leftPart)
+        ? expandLeftPartForAppend(leftPart)
+        : leftPart;
+
+    if (cellHasEmptyTail(rightCell)) {
+        const body = rightCell.slice(1, -1);
+        const lastNote = body[body.length - 1];
+        return leftNotes.concat(body).concat([lastNote]);
+    }
+
+    return leftNotes.concat(rightCell.slice(1));
+}
+
+// Prepend left cell before existing phrase (time backward construction)
+function prependCell(leftCell, phrase) {
+    if (cellHasEmptyTail(leftCell)) {
+        return leftCell.slice(0, -2).concat(phrase);
+    }
+    return leftCell.slice(0, -1).concat(phrase);
+}
+
+// Pitch-class name tables for accidental spelling
+const PITCH_CLASSES_SHARP = {0: "C", 1: "C#", 2: "D", 3: "D#", 4: "E", 5: "F",
+                             6: "F#", 7: "G", 8: "G#", 9: "A", 10: "A#", 11: "B"};
+const PITCH_CLASSES_FLAT = {0: "C", 1: "Db", 2: "D", 3: "Eb", 4: "E", 5: "F",
+                            6: "Gb", 7: "G", 8: "Ab", 9: "A", 10: "Bb", 11: "B"};
+
+// 7sus4 chord-type spelling: which display keys prefer flats for temporary accidentals
+const FLAT_KEYS_7SUS4_DOMINANT = new Set(["C", "Db", "Eb", "F", "Ab", "Bb"]);
+const FLAT_KEYS_7SUS4_MINOR = new Set(["C", "D", "Eb", "F", "G", "Ab", "Bb", "Db"]);
+const FLAT_KEYS_7SUS4_HALF_DIM = new Set(["C", "D", "E", "F", "G", "A"]);
+const DEFAULT_FLAT_KEYS = new Set(["Db", "Ab", "Eb", "Bb", "F", "C"]);
+
+function prefersFlatsForKey(key, chordType = null) {
+    if (chordType === "dominant") {
+        return FLAT_KEYS_7SUS4_DOMINANT.has(key);
+    }
+    if (chordType === "minor") {
+        return FLAT_KEYS_7SUS4_MINOR.has(key);
+    }
+    if (chordType === "half_dim") {
+        return FLAT_KEYS_7SUS4_HALF_DIM.has(key);
+    }
+    // Default / non-7sus4: original key-based behavior
+    return DEFAULT_FLAT_KEYS.has(key);
+}
+
 // Note transposition - EXACT MATCH TO PYTHON transpose_note function
-function transposeNote(note, semitones, key) {
+// Optional chordType selects 7sus4 display-key sharp/flat preference
+function transposeNote(note, semitones, key, chordType = null) {
     const [pitchClass, octave] = noteToPitch(note);
     
     // Handle invalid notes
@@ -48,19 +183,12 @@ function transposeNote(note, semitones, key) {
     const newPitch = ((pitchClass + semitones) % 12 + 12) % 12;
     const newOctave = octave + Math.floor((pitchClass + semitones) / 12);
     
-    // Define pitch classes exactly like Python
-    const PITCH_CLASSES_SHARP = {0: "C", 1: "C#", 2: "D", 3: "D#", 4: "E", 5: "F",
-                                 6: "F#", 7: "G", 8: "G#", 9: "A", 10: "A#", 11: "B"};
-    const PITCH_CLASSES_FLAT = {0: "C", 1: "Db", 2: "D", 3: "Eb", 4: "E", 5: "F",
-                                6: "Gb", 7: "G", 8: "Ab", 9: "A", 10: "Bb", 11: "B"};
-    const FLAT_KEYS = new Set(["Db", "Ab", "Eb", "Bb", "F", "C"]);
-    
-    // Choose sharp/flat based on key - exact Python logic
-    const pitchClasses = FLAT_KEYS.has(key) ? PITCH_CLASSES_FLAT : PITCH_CLASSES_SHARP;
+    const useFlats = prefersFlatsForKey(key, chordType);
+    const pitchClasses = useFlats ? PITCH_CLASSES_FLAT : PITCH_CLASSES_SHARP;
     let pitchName = pitchClasses[newPitch];
     
-    // Special handling for certain keys - EXACT Python logic from lines 17-19
-    if (["F#", "B", "E", "A", "D", "G"].includes(key)) {
+    // Legacy sharp-key remap when no chord-type policy is active
+    if (!chordType && ["F#", "B", "E", "A", "D", "G"].includes(key)) {
         if (["Db", "Eb", "Gb", "Ab", "Bb"].includes(pitchName)) {
             const sharpMap = {1: "C#", 3: "D#", 6: "F#", 8: "G#", 10: "A#"};
             pitchName = sharpMap[newPitch] || pitchName;
@@ -72,7 +200,7 @@ function transposeNote(note, semitones, key) {
 
 // Adjust right cell octaves to match left cell
 function adjustRightCell(leftCell, rightCell) {
-    const [leftEndPitch, leftEndOctave] = noteToPitch(leftCell[leftCell.length - 1]);
+    const [leftEndPitch, leftEndOctave] = noteToPitch(getCellLastNote(leftCell));
     const [rightStartPitch, rightStartOctave] = noteToPitch(rightCell[0]);
     
     let octaveShift;
@@ -88,6 +216,8 @@ function adjustRightCell(leftCell, rightCell) {
     }
     
     const result = rightCell.map(note => {
+        if (isEmptyCellMarker(note)) return note;
+
         const [pitchClass, octave] = noteToPitch(note);
         
         // Handle invalid notes
@@ -96,25 +226,9 @@ function adjustRightCell(leftCell, rightCell) {
             return note; // Return original note if invalid
         }
         
+        // Preserve original accidental spelling; only change octave
+        const pitchName = note.slice(0, -1);
         const newOctave = octave + octaveShift;
-        
-        // Use the same pitch class constants as defined in transposeNote
-        const PITCH_CLASSES_SHARP = {0: "C", 1: "C#", 2: "D", 3: "D#", 4: "E", 5: "F",
-                                     6: "F#", 7: "G", 8: "G#", 9: "A", 10: "A#", 11: "B"};
-        const PITCH_CLASSES_FLAT = {0: "C", 1: "Db", 2: "D", 3: "Eb", 4: "E", 5: "F",
-                                    6: "Gb", 7: "G", 8: "Ab", 9: "A", 10: "Bb", 11: "B"};
-        const LOCAL_FLAT_KEYS = new Set(["Db", "Ab", "Eb", "Bb", "F", "C"]);
-        
-        // Find the note name with the new octave
-        const pitchClasses = LOCAL_FLAT_KEYS.has("C") ? PITCH_CLASSES_FLAT : PITCH_CLASSES_SHARP;
-        const pitchName = pitchClasses[pitchClass];
-        
-        // Handle case where pitchName is undefined
-        if (pitchName === undefined) {
-            console.error('Invalid pitch class:', pitchClass, 'for note:', note);
-            return note; // Return original note if lookup fails
-        }
-        
         return `${pitchName}${newOctave}`;
     });
     
@@ -202,7 +316,8 @@ function generateABCScore(phrase, partial = false, phraseLength = 9) {
         // Full phrase: show all notes with proper accidental handling and beaming
         notes = displayPhrase;
         const abcNotesList = convertToABCWithAccidentals(notes);
-        abcNotes = groupNotesForBeaming(abcNotesList);
+        const abcWithTies = insertAbcTies(notes, abcNotesList);
+        abcNotes = groupNotesForBeaming(abcWithTies);
     }
     
     console.log(`Generating ABC score ${partial ? 'partial' : 'full'}: original phrase=${phrase}, display phrase=${displayPhrase}, notes=${notes}, abcNotes=${abcNotes}`);
@@ -216,22 +331,42 @@ ${abcNotes}`;
     return abcNotation;
 }
 
+function insertAbcTies(originalNotes, abcNotesList) {
+    const withTies = [];
+    for (let i = 0; i < abcNotesList.length; i++) {
+        if (i > 0 && originalNotes[i] === originalNotes[i - 1]) {
+            withTies.push("-");
+        }
+        withTies.push(abcNotesList[i]);
+    }
+    return withTies;
+}
+
 // Group notes for proper beaming in ABC notation (eighth notes in groups of 4)
 function groupNotesForBeaming(abcNotesList) {
     const beamedGroups = [];
-    
-    for (let i = 0; i < abcNotesList.length; i += 4) {
-        const group = abcNotesList.slice(i, i + 4);
-        if (group.length === 4) {
-            // Group of 4 notes - beam them together
-            beamedGroups.push(group.join(''));
-        } else {
-            // Remaining notes (less than 4) - separate with spaces
-            beamedGroups.push(group.join(' '));
+    let group = [];
+    let noteCount = 0;
+
+    for (const token of abcNotesList) {
+        if (token === "-") {
+            group.push(token);
+            continue;
+        }
+        group.push(token);
+        noteCount++;
+        if (noteCount === 4) {
+            beamedGroups.push(group.join(""));
+            group = [];
+            noteCount = 0;
         }
     }
-    
-    return beamedGroups.join(' ');
+
+    if (group.length) {
+        beamedGroups.push(group.join(group.length > 1 ? "" : " "));
+    }
+
+    return beamedGroups.join(" ");
 }
 
 // Convert notes to ABC notation with proper accidental state tracking
@@ -344,8 +479,8 @@ function convertToABC(notes) {
 
 // Generate transposed cells for different phrase types
 function generateTransposedCells(originalCells, semitones, key) {
-    return originalCells.map(cell => 
-        cell.map(note => transposeNote(note, semitones, key))
+    return originalCells.map(cell =>
+        cell.map(note => isEmptyCellMarker(note) ? note : transposeNote(note, semitones, key))
     );
 }
 
@@ -370,6 +505,19 @@ if (typeof window !== 'undefined') {
     window.transposeNote = transposeNote;
     window.transposeNoteDownOneOctave = transposeNoteDownOneOctave;
     window.adjustRightCell = adjustRightCell;
+    window.prefersFlatsForKey = prefersFlatsForKey;
+    window.isEmptyCellMarker = isEmptyCellMarker;
+    window.getCellLastNote = getCellLastNote;
+    window.getCellFirstNote = getCellFirstNote;
+    window.getCellLastPitchClass = getCellLastPitchClass;
+    window.getCellFirstPitchClass = getCellFirstPitchClass;
+    window.cellHasEmptyTail = cellHasEmptyTail;
+    window.getCellPitchClasses = getCellPitchClasses;
+    window.getResolutionTailPitchClasses = getResolutionTailPitchClasses;
+    window.expandCellToPhraseTail = expandCellToPhraseTail;
+    window.adjustCellOctavesFromPhraseTail = adjustCellOctavesFromPhraseTail;
+    window.appendCell = appendCell;
+    window.prependCell = prependCell;
     window.Cycler = Cycler;
     window.noteToPitch = noteToPitch;
     console.log('music-utils.js: Functions made available globally');

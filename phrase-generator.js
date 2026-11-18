@@ -58,22 +58,13 @@ function adjustPhraseOctave(phrase) {
     
     if (octaveShift === 0) return phrase;
     
-    // Apply octave shift
+    // Apply octave shift while preserving accidental spelling
     const adjustedPhrase = phrase.map(note => {
         const [pitchClass, octave] = noteToPitch(note);
         if (pitchClass === undefined || octave === undefined) return note;
         
+        const pitchName = note.slice(0, -1);
         const newOctave = octave + octaveShift;
-        // Use the same pitch class constants as in transposeNote
-        const PITCH_CLASSES_SHARP = {0: "C", 1: "C#", 2: "D", 3: "D#", 4: "E", 5: "F",
-                                     6: "F#", 7: "G", 8: "G#", 9: "A", 10: "A#", 11: "B"};
-        const PITCH_CLASSES_FLAT = {0: "C", 1: "Db", 2: "D", 3: "Eb", 4: "E", 5: "F",
-                                    6: "Gb", 7: "G", 8: "Ab", 9: "A", 10: "Bb", 11: "B"};
-        const FLAT_KEYS = new Set(["Db", "Ab", "Eb", "Bb", "F", "C"]);
-        
-        const pitchClasses = FLAT_KEYS.has("C") ? PITCH_CLASSES_FLAT : PITCH_CLASSES_SHARP;
-        const pitchName = pitchClasses[pitchClass];
-        
         return `${pitchName}${newOctave}`;
     });
     
@@ -230,8 +221,8 @@ function containsForbiddenShape(phrase) {
 }
 
 // Generate phrase based on type - EXACT MATCH TO PYTHON
-function generatePhrase(phraseType = "7sus4", selectedKey = null, chordType = null) {
-    console.log('generatePhrase called with:', { phraseType, selectedKey, chordType });
+function generatePhrase(phraseType = "7sus4", selectedKey = null, chordType = null, spellingKey = null) {
+    console.log('generatePhrase called with:', { phraseType, selectedKey, chordType, spellingKey });
     
     // Ensure transposed cells are initialized
     if (!window.CELLSM5 && typeof initializeTransposedCells === 'function') {
@@ -424,7 +415,20 @@ function generatePhrase(phraseType = "7sus4", selectedKey = null, chordType = nu
                 transpositionSemitones = keySemitones;
             }
             
-            const transposedPhrase = phrase.map(note => transposeNote(note, transpositionSemitones, keyName));
+            // For 7sus4 chord types, spell accidentals by display key + chord type
+            let noteSpellingKey = spellingKey || keyName;
+            let noteChordType = chordType;
+            if ((phraseType === "7sus4" || phraseType === "long_7sus4") &&
+                noteChordType && ["minor", "dominant", "half_dim"].includes(noteChordType)) {
+                if (!spellingKey && typeof find_7sus4_target_key_for_display === "function") {
+                    noteSpellingKey = find_7sus4_target_key_for_display(keyName, noteChordType);
+                }
+            } else {
+                noteChordType = null; // keep legacy spelling for non-7sus4 chord-type paths
+            }
+            const transposedPhrase = phrase.map(note =>
+                transposeNote(note, transpositionSemitones, noteSpellingKey, noteChordType)
+            );
             
             // Validate resolution cell
             const validatedPhrase = validateResolutionCell(transposedPhrase, phraseType);
@@ -494,7 +498,7 @@ function generatePhrase(phraseType = "7sus4", selectedKey = null, chordType = nu
 // Generate 7sus4 phrase - EXACT MATCH TO PYTHON
 function generate7sus4Phrase(keyName) {
     const leftCell = leftCycler.nextItem();
-    const lastNoteLeft = leftCell[leftCell.length - 1].slice(0, -1); // Remove octave
+    const lastNoteLeft = getCellLastPitchClass(leftCell); // Remove octave
     
     // Find compatible right cells
     const compatibleRight = CELLS.filter(cell => cell[0].slice(0, -1) === lastNoteLeft);
@@ -510,7 +514,7 @@ function generate7sus4Phrase(keyName) {
     }
     
     const adjustedRight = adjustRightCell(leftCell, rightCell);
-    const phrase = leftCell.concat(adjustedRight.slice(1));
+    const phrase = appendCell(leftCell, adjustedRight);
     
     return { phrase: phrase, length: phrase.length };
 }
@@ -518,7 +522,7 @@ function generate7sus4Phrase(keyName) {
 // Generate major phrase - EXACT MATCH TO PYTHON
 function generateMajorPhrase(keyName) {
     const leftCell = leftCycler.nextItem();
-    const lastNoteLeft = leftCell[leftCell.length - 1].slice(0, -1); // Remove octave
+    const lastNoteLeft = getCellLastPitchClass(leftCell); // Remove octave
     
     // Find compatible right cells
     const compatibleRight = MAJOR_CELLS.filter(cell => cell[0].slice(0, -1) === lastNoteLeft);
@@ -534,7 +538,7 @@ function generateMajorPhrase(keyName) {
     }
     
     const adjustedRight = adjustRightCell(leftCell, rightCell);
-    const phrase = leftCell.concat(adjustedRight.slice(1));
+    const phrase = appendCell(leftCell, adjustedRight);
     
     return { phrase: phrase, length: phrase.length };
 }
@@ -553,7 +557,7 @@ function generateLongMajorPhrase(keyName) {
         
         for (const cellSet of cellSets) {
             const firstNoteCurrent = phrase[0].slice(0, -1);
-            const compatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+            const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
             
             if (compatibleCells.length === 0) {
                 validPhrase = false;
@@ -571,7 +575,7 @@ function generateLongMajorPhrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCells.add(leftCell.join(' ')); // Mark this cell as used
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
         }
         
         if (validPhrase && phrase.length === 17) {  // Expected length: 5 + 4 + 4 + 4
@@ -599,7 +603,7 @@ function generateLong7sus4Phrase(keyName) {
         
         for (const cellSet of cellSets) {
             const firstNoteCurrent = phrase[0].slice(0, -1);
-            const compatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+            const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
             
             if (compatibleCells.length === 0) {
                 validPhrase = false;
@@ -617,7 +621,7 @@ function generateLong7sus4Phrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCells.add(leftCell.join(' ')); // Mark this cell as used
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
         }
         
         if (validPhrase && phrase.length === 17) {  // Expected length: 5 + 4 + 4 + 4
@@ -635,70 +639,55 @@ function generateLong7sus4Phrase(keyName) {
 function generateShort25MajorPhrase(keyName) {
     const rightCell = rightCycler.nextItem();
     const firstNoteRight = rightCell[0].slice(0, -1);
-    const compatibleLeft = window.CELLS2.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteRight);
+    const compatibleLeft = window.CELLS2.filter(cell => getCellLastPitchClass(cell) === firstNoteRight);
     
-    let leftCell;
-    if (compatibleLeft.length > 0) {
-        leftCell = leftCycler.nextItem();
-        let attempts = 0;
-        while (leftCell[leftCell.length - 1].slice(0, -1) !== firstNoteRight && attempts < window.CELLS2.length) {
-            leftCell = leftCycler.nextItem();
-            attempts++;
-        }
-        if (attempts >= window.CELLS2.length) {
-            leftCell = compatibleLeft[0];
-        }
-    } else {
-        leftCell = leftCycler.nextItem();
-    }
+    const leftCell = compatibleLeft.length > 0
+        ? new Cycler(compatibleLeft).nextItem()
+        : leftCycler.nextItem();
     
     const adjustedRight = adjustRightCell(leftCell, rightCell);
-    const phrase = leftCell.concat(adjustedRight.slice(1));
+    const phrase = appendCell(leftCell, adjustedRight);
     
     return { phrase: phrase, length: phrase.length };
 }
 
-// Generate long 25 major phrase - MODIFIED to use filtered cells for positions 0 and 1
+// Generate long 25 major phrase — right two cells identical to short 25 major; prepend two cells on the left
 function generateLong25MajorPhrase(keyName) {
-    let resolutionCell = resolutionCycler.nextItem();  // Position 3 (rightmost, first in time)
-    let phrase = resolutionCell;
-    console.log('Long 251 major - Position 3 (resolution):', resolutionCell, 'starts with:', resolutionCell[0]);
-    // Position order: [position 2, position 1, position 0] - added right to left
-    // Position 2: uses CELLS2 (no F), Position 1: uses CELLS (no filtering), Position 0: uses CELLS (no E)
-    const cellSets = [window.CELLS2_FILTERED_NO_F, window.CELLS, window.CELLS_FILTERED_NO_E];
-    const positionNames = ['Position 2', 'Position 1', 'Position 0'];
-    let usedCells = new Set(); // Track used cells to avoid duplicates
-    usedCells.add(resolutionCell.join(' ')); // Add the resolution cell
-    
+    const shortResult = generateShort25MajorPhrase(keyName);
+    let phrase = shortResult.phrase;
+    console.log('Long 251 major - short tail (positions 2–3):', phrase.join(' '));
+
+    // Position 1: CELLS; position 0: CELLS excluding cells starting on E
+    const cellSets = [window.CELLS, window.CELLS_FILTERED_NO_E];
+    const positionNames = ['Position 1', 'Position 0'];
+    let usedCells = new Set();
+
     for (let i = 0; i < cellSets.length; i++) {
         const cellSet = cellSets[i];
-        const positionName = ['Position 2', 'Position 1', 'Position 0'][i];
+        const positionName = positionNames[i];
         const firstNoteCurrent = phrase[0].slice(0, -1);
-        const dominantCompatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
-        
-        if (dominantCompatibleCells.length > 0) {
-            // Filter out cells that have already been used
-            const unusedCompatibleCells = dominantCompatibleCells.filter(cell => !usedCells.has(cell.join(' ')));
-            
-            if (unusedCompatibleCells.length === 0) {
-                throw new Error("No unused compatible cells found for long_25_major phrase");
-            }
-            
-            const leftCell = new Cycler(unusedCompatibleCells).nextItem();
-            console.log(`Long 251 major - ${positionName}:`, leftCell, 'starts with:', leftCell[0]);
-            usedCells.add(leftCell.join(' ')); // Mark this cell as used
-            const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
-        } else {
-            throw new Error("No compatible cells found for long_25_major phrase");
+        const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
+
+        if (compatibleCells.length === 0) {
+            throw new Error(`No compatible cells found for long_25_major phrase at ${positionName}`);
         }
+
+        const unusedCompatibleCells = compatibleCells.filter(cell => !usedCells.has(cell.join(' ')));
+        if (unusedCompatibleCells.length === 0) {
+            throw new Error(`No unused compatible cells found for long_25_major phrase at ${positionName}`);
+        }
+
+        const leftCell = new Cycler(unusedCompatibleCells).nextItem();
+        console.log(`Long 251 major - ${positionName}:`, leftCell, 'starts with:', leftCell[0]);
+        usedCells.add(leftCell.join(' '));
+        const adjustedPhrase = adjustRightCell(leftCell, phrase);
+        phrase = prependCell(leftCell, adjustedPhrase);
     }
-    
-    // Validate phrase for problematic sequence
+
     if (!validatePhraseForProblematicSequence(phrase)) {
         throw new Error("Generated phrase contains problematic sequence, retrying...");
     }
-    
+
     return { phrase: phrase, length: phrase.length };
 }
 
@@ -722,7 +711,7 @@ function generateLongSideStep25Phrase(keyName) {
         const cellSet = cellSets[i];
         const positionName = positionNames[i];
         const firstNoteCurrent = phrase[0].slice(0, -1);
-        const dominantCompatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+        const dominantCompatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
         
         console.log(`Looking for ${positionName} cells ending with pitch class:`, firstNoteCurrent);
         console.log(`Found ${dominantCompatibleCells.length} compatible cells in ${positionName}`);
@@ -739,7 +728,7 @@ function generateLongSideStep25Phrase(keyName) {
             console.log(`Long side-step 25 - ${positionName}:`, leftCell, 'starts with:', leftCell[0]);
             usedCells.add(leftCell.join(' ')); // Mark this cell as used
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
         } else {
             throw new Error(`No compatible cells found for long side-step 25 phrase at ${positionName}`);
         }
@@ -757,25 +746,14 @@ function generateLongSideStep25Phrase(keyName) {
 function generateShort25MinorPhrase(keyName) {
     const rightCell = rightCycler.nextItem();
     const firstNoteRight = rightCell[0].slice(0, -1);
-    const compatibleLeft = MINOR_B_CELLS.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteRight);
+    const compatibleLeft = MINOR_B_CELLS.filter(cell => getCellLastPitchClass(cell) === firstNoteRight);
     
-    let leftCell;
-    if (compatibleLeft.length > 0) {
-        leftCell = leftCycler.nextItem();
-        let attempts = 0;
-        while (leftCell[leftCell.length - 1].slice(0, -1) !== firstNoteRight && attempts < MINOR_B_CELLS.length) {
-            leftCell = leftCycler.nextItem();
-            attempts++;
-        }
-        if (attempts >= MINOR_B_CELLS.length) {
-            leftCell = compatibleLeft[0];
-        }
-    } else {
-        leftCell = leftCycler.nextItem();
-    }
+    const leftCell = compatibleLeft.length > 0
+        ? new Cycler(compatibleLeft).nextItem()
+        : leftCycler.nextItem();
     
     const adjustedRight = adjustRightCell(leftCell, rightCell);
-    const phrase = leftCell.concat(adjustedRight.slice(1));
+    const phrase = appendCell(leftCell, adjustedRight);
     
     // Validate phrase for problematic sequence
     if (!validatePhraseForProblematicSequence(phrase)) {
@@ -785,12 +763,12 @@ function generateShort25MinorPhrase(keyName) {
     return { phrase: phrase, length: phrase.length };
 }
 
-// Generate long 25 minor phrase - NEW APPROACH: start with short phrase, add left cells
+// Generate long 25 minor phrase — right two cells identical to short 25 minor; prepend two CELLSM5 on the left
 function generateLong25MinorPhrase(keyName) {
-    // First generate a short 25 minor phrase (9 notes)
     const shortResult = generateShort25MinorPhrase(keyName);
     let phrase = shortResult.phrase;
-    
+    console.log('Long 251 minor - short tail (positions 2–3):', phrase.join(' '));
+
     // Now add two cells from CELLSM5 to the left, ensuring connectivity
     const cellSets = [window.CELLSM5, window.CELLSM5];  // Two additional cells
     let usedCells = new Set(); // Track used cells to avoid duplicates
@@ -802,7 +780,7 @@ function generateLong25MinorPhrase(keyName) {
     for (let i = 0; i < cellSets.length; i++) {
         const cellSet = cellSets[i];
         const firstNoteCurrent = phrase[0].slice(0, -1);  // Get pitch class of first note
-        const compatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+        const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
         
         if (compatibleCells.length > 0) {
             // Filter out cells that have already been used
@@ -815,7 +793,7 @@ function generateLong25MinorPhrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCells.add(leftCell.join(' ')); // Mark this cell as used
             const adjustedPhrase = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedPhrase);  // Remove last note of left cell, add entire adjusted phrase
+            phrase = prependCell(leftCell, adjustedPhrase);  // Remove last note of left cell, add entire adjusted phrase
         } else {
             throw new Error("No compatible cells found for long_25_minor phrase");
         }
@@ -854,7 +832,7 @@ function generateTurnaroundPhrase(keyName) {
             const cellSet = cellSets[i];
             const cellSetName = i === 0 ? 'CELLS2' : i === 1 ? 'MINOR_C_CELLS_DOWN2' : 'TURNAROUND_CELLS_1';
             const firstNoteCurrent = phrase[0].slice(0, -1);
-            const compatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+            const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
             
             if (compatibleCells.length === 0) {
                 validPhrase = false;
@@ -872,7 +850,7 @@ function generateTurnaroundPhrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCellsPerSet[cellSetName].add(leftCell.join(' ')); // Mark this cell as used in this set
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
         }
         
         if (validPhrase && phrase.length === 17) {
@@ -926,7 +904,7 @@ function generateRhythmChanges56Phrase(keyName) {
             const firstNoteCurrent = phrase[0].slice(0, -1);
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent, 'in', cellSetName);
             
-            const compatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+            const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
             console.log('Found', compatibleCells.length, 'compatible cells in', cellSetName);
             
             if (compatibleCells.length === 0) {
@@ -960,7 +938,7 @@ function generateRhythmChanges56Phrase(keyName) {
             
             usedCellsPerSet[cellSetName].add(leftCell.join(' ')); // Mark this cell as used in this set
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
             console.log('Added cell, phrase length now:', phrase.length);
         }
         
@@ -1007,7 +985,7 @@ function generateII7ToV7Phrase(keyName) {
             const cellSet = cellSets[i];
             const cellSetName = i === 0 ? 'CELLS_down5' : 'CELLS_up2';
             const firstNoteCurrent = phrase[0].slice(0, -1);
-            const compatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+            const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
             
             if (compatibleCells.length === 0) {
                 validPhrase = false;
@@ -1025,7 +1003,7 @@ function generateII7ToV7Phrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCellsPerSet[cellSetName].add(leftCell.join(' ')); // Mark this cell as used in this set
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
         }
         
         if (validPhrase && phrase.length === 17) {
@@ -1101,7 +1079,7 @@ function generateIiiToBiiiPhrase(keyName) {
         console.log('Available BASE_LONG_BIIICELLS:', window.BASE_LONG_BIIICELLS ? window.BASE_LONG_BIIICELLS.length : 'undefined');
         console.log('First note of right cell:', firstNoteRight);
         
-        const compatibleLeft = [...window.PRE_BIIICELLS, ...window.BASE_LONG_BIIICELLS].filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteRight);
+        const compatibleLeft = [...window.PRE_BIIICELLS, ...window.BASE_LONG_BIIICELLS].filter(cell => getCellLastPitchClass(cell) === firstNoteRight);
         
         console.log('Compatible left cells found:', compatibleLeft.length);
         console.log('Compatible cells:', compatibleLeft.map(cell => ({ length: cell.length, lastNote: cell[cell.length - 1], firstNote: cell[0] })));
@@ -1128,7 +1106,7 @@ function generateIiiToBiiiPhrase(keyName) {
         
         // For iii to biii° phrases, use cells directly without octave adjustment to preserve cell shapes
         const adjustedRight = adjustRightCell(leftCell, rightCell);
-        const phrase = leftCell.concat(adjustedRight.slice(1));
+        const phrase = appendCell(leftCell, adjustedRight);
         
         // Validate phrase for problematic sequence
         if (!validatePhraseForProblematicSequence(phrase)) {
@@ -1217,7 +1195,7 @@ function generateLongIiiToBiiiPhrase(keyName) {
 		if (pos2Candidates.length === 0) throw new Error('No pos2 candidates (iii→biii short)');
 		const pos2 = new Cycler(pos2Candidates).nextItem();
 		const adjusted = adjustRightCell(pos2, phrase);
-		phrase = pos2.slice(0, -1).concat(adjusted);
+		phrase = prependCell(pos2, adjusted);
 		console.log('iii→biii Mode=short. Added pos2, length:', phrase.length);
 	}
 
@@ -1229,11 +1207,11 @@ function generateLongIiiToBiiiPhrase(keyName) {
 	for (let i = 0; i < cellSets.length; i++) {
 		const cellSet = cellSets[i];
 		const phraseFirstPitch = noteToPitch(phrase[0])[0];
-		const compatibleCells = cellSet.filter(cell => noteToPitch(cell[cell.length - 1])[0] === phraseFirstPitch);
+		const compatibleCells = cellSet.filter(cell => noteToPitch(getCellLastNote(cell))[0] === phraseFirstPitch);
 		if (compatibleCells.length === 0) throw new Error('No compatible cells (iii→biii)');
 		const leftCell = new Cycler(compatibleCells).nextItem();
 		const adjusted = adjustRightCell(leftCell, phrase);
-		phrase = leftCell.slice(0, -1).concat(adjusted);
+		phrase = prependCell(leftCell, adjusted);
 	}
 
 	// advance cycle only on success
@@ -1317,7 +1295,7 @@ function generateBiiiToIiOldPhrase(keyName) { // Now generates vi to II7b9 phras
         // Note: The right cell (position 3) can use either the original cells or the new long cells
         const allLeftCells = [...window.CELLS_up2, ...extraCells];
         const compatibleLeft = allLeftCells.filter(cell => {
-            const cellEndsWith = cell[cell.length - 1].slice(0, -1);
+            const cellEndsWith = getCellLastPitchClass(cell);
             const cellStartsWith = cell[0].slice(0, -1);
             return cellEndsWith === firstNoteRight && cellStartsWith !== 'G';
         });
@@ -1361,7 +1339,7 @@ function generateBiiiToIiOldPhrase(keyName) { // Now generates vi to II7b9 phras
         
         // For biii° to ii phrases, use cells directly without octave adjustment to preserve cell shapes
         const adjustedRight = adjustRightCell(leftCell, rightCell);
-        const phrase = leftCell.concat(adjustedRight.slice(1));
+        const phrase = appendCell(leftCell, adjustedRight);
         
         return { phrase: phrase, length: phrase.length };
     }
@@ -1512,7 +1490,7 @@ function generateLongBiiiToIiOldPhrase(keyName) {
                 if (pos2Candidates.length === 0) throw new Error('No pos2 candidates for short mode');
                 const pos2 = new Cycler(pos2Candidates).nextItem();
                 const adjusted = adjustRightCell(pos2, phrase);
-                phrase = pos2.slice(0,-1).concat(adjusted);
+                phrase = prependCell(pos2, adjusted);
                 console.log('Mode=short. Added pos2. Phrase length:', phrase.length);
             }
             
@@ -1546,7 +1524,7 @@ function generateLongBiiiToIiOldPhrase(keyName) {
                 if (i === 1) {
                     // For cell 0 (leftmost), filter out cells starting with "G"
                     compatibleCells = cellSet.filter(cell => {
-                        const cellEndsPitch = noteToPitch(cell[cell.length - 1])[0];
+                        const cellEndsPitch = noteToPitch(getCellLastNote(cell))[0];
                         const phraseFirstPitch = noteToPitch(phrase[0])[0];
                         const cellStartsWith = cell[0].slice(0, -1);
                         return cellEndsPitch === phraseFirstPitch && cellStartsWith !== 'G';
@@ -1554,7 +1532,7 @@ function generateLongBiiiToIiOldPhrase(keyName) {
                 } else {
                     // For cell 1 (position 1), also filter out cells starting with "G"
                     compatibleCells = cellSet.filter(cell => {
-                        const cellEndsPitch = noteToPitch(cell[cell.length - 1])[0];
+                        const cellEndsPitch = noteToPitch(getCellLastNote(cell))[0];
                         const phraseFirstPitch = noteToPitch(phrase[0])[0];
                         const cellStartsWith = cell[0].slice(0, -1);
                         return cellEndsPitch === phraseFirstPitch && cellStartsWith !== 'G';
@@ -1605,7 +1583,7 @@ function generateLongBiiiToIiOldPhrase(keyName) {
                     
                     // Add the cell to the phrase (adjusting the connection)
                     const adjustedLeft = adjustRightCell(leftCell, phrase);
-                    phrase = leftCell.slice(0, -1).concat(adjustedLeft);
+                    phrase = prependCell(leftCell, adjustedLeft);
                     console.log('Added cell', i, 'phrase length now:', phrase.length);
                     console.log('Cell', i, 'details - length:', leftCell.length, 'notes:', leftCell);
                     console.log('Current phrase:', phrase);
@@ -1651,43 +1629,26 @@ function validateResolutionCell(phrase, phraseType) {
         console.log(`Checking MAJOR_RESOLUTION_CELLS for ${phraseType}`);
         console.log(`Resolution cell: ${resolutionCellStr}`);
         
-        // Check if it matches exactly
-        for (const cell of MAJOR_RESOLUTION_CELLS) {
-            const cellStr = cell.join(" ");
-            if (cellStr === resolutionCellStr) {
-                console.log(`Exact match found in MAJOR_RESOLUTION_CELLS: ${cellStr}`);
-                return phrase;
-            }
-        }
-        
-        // If no exact match, check pitch class match and adjust octaves
-        const resolutionPitchClasses = resolutionCell.map(note => note.slice(0, -1));
+        const resolutionPitchClasses = getResolutionTailPitchClasses(phrase);
         console.log(`Checking pitch class match for: ${resolutionPitchClasses.join(" ")}`);
         
         for (const cell of MAJOR_RESOLUTION_CELLS) {
-            const cellPitchClasses = cell.map(note => note.slice(0, -1));
-            if (JSON.stringify(cellPitchClasses) === JSON.stringify(resolutionPitchClasses)) {
-                console.log(`Pitch class match found, adjusting octaves: ${cellPitchClasses.join(" ")}`);
-                
-                // Adjust octaves to match the current phrase
-                const adjustedCell = [];
-                const refOctave = noteToPitch(resolutionCell[0])[1];
-                
-                for (let i = 0; i < cell.length; i++) {
-                    const [pitchClass, octave] = noteToPitch(cell[i]);
-                    const [cellFirstPitch, cellFirstOctave] = noteToPitch(cell[0]);
-                    const newOctave = refOctave + (octave - cellFirstOctave);
-                    
-                    // Find the note with this pitch class and octave
-                    const pitchName = PITCH_CLASSES_SHARP[pitchClass];
-                    const adjustedNote = `${pitchName}${newOctave}`;
-                    adjustedCell.push(adjustedNote);
-                }
-                
-                const adjustedPhrase = phrase.slice(0, -5).concat(adjustedCell);
-                console.log(`Adjusted phrase: ${adjustedPhrase.join(" ")}`);
-                return adjustedPhrase;
+            const cellPitchClasses = getCellPitchClasses(cell);
+            if (JSON.stringify(cellPitchClasses) !== JSON.stringify(resolutionPitchClasses)) {
+                continue;
             }
+            
+            const expectedTailStr = expandCellToPhraseTail(cell).join(" ");
+            if (resolutionCellStr === expectedTailStr) {
+                console.log(`Exact match found in MAJOR_RESOLUTION_CELLS: ${cell.join(" ")}`);
+                return phrase;
+            }
+            
+            console.log(`Pitch class match found, adjusting octaves: ${cellPitchClasses.join(" ")}`);
+            const adjustedCell = adjustCellOctavesFromPhraseTail(cell, phrase);
+            const adjustedPhrase = phrase.slice(0, -5).concat(expandCellToPhraseTail(adjustedCell));
+            console.log(`Adjusted phrase: ${adjustedPhrase.join(" ")}`);
+            return adjustedPhrase;
         }
     } else if (["short_25_minor", "long_25_minor"].includes(phraseType)) {
         const resolutionCell = phrase.slice(-5);
@@ -1720,7 +1681,7 @@ function validateResolutionCell(phrase, phraseType) {
                     adjustedCell.push(adjustedNote);
                 }
                 
-                return phrase.slice(0, -5).concat(adjustedCell);
+                return phrase.slice(0, -5).concat(expandCellToPhraseTail(adjustedCell));
             }
         }
     } else if (phraseType === "rhythm_changes_56") {
@@ -1754,7 +1715,7 @@ function validateResolutionCell(phrase, phraseType) {
                     adjustedCell.push(adjustedNote);
                 }
                 
-                return phrase.slice(0, -5).concat(adjustedCell);
+                return phrase.slice(0, -5).concat(expandCellToPhraseTail(adjustedCell));
             }
         }
     } else if (phraseType === "ii7_to_v7") {
@@ -1788,7 +1749,7 @@ function validateResolutionCell(phrase, phraseType) {
                     adjustedCell.push(adjustedNote);
                 }
                 
-                return phrase.slice(0, -5).concat(adjustedCell);
+                return phrase.slice(0, -5).concat(expandCellToPhraseTail(adjustedCell));
             }
         }
     }
@@ -1832,7 +1793,7 @@ function generateBackdoor25Phrase(keyName) {
             const firstNoteCurrent = phrase[0].slice(0, -1);
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent, 'in', cellSetName);
             
-            const compatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+            const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
             console.log('Found', compatibleCells.length, 'compatible cells in', cellSetName);
             
             if (compatibleCells.length === 0) {
@@ -1854,7 +1815,7 @@ function generateBackdoor25Phrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCellsPerSet[cellSetName].add(leftCell.join(' ')); // Mark this cell as used in this set
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
         }
         
         if (validPhrase && phrase.length === 17) {
@@ -1901,7 +1862,7 @@ function generateShortBackdoor25Phrase(keyName) {
             const firstNoteCurrent = phrase[0].slice(0, -1);
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent, 'in', cellSetName);
             
-            const compatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+            const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
             console.log('Found', compatibleCells.length, 'compatible cells in', cellSetName);
             
             if (compatibleCells.length === 0) {
@@ -1923,7 +1884,7 @@ function generateShortBackdoor25Phrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCellsPerSet[cellSetName].add(leftCell.join(' ')); // Mark this cell as used in this set
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
         }
         
         if (validPhrase && phrase.length === 9) {
@@ -1971,7 +1932,7 @@ function generateTritoneSub25MajorPhrase(keyName) {
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent, 'in CELLS_up6');
             
             const compatibleCellsUp6 = window.CELLS_up6.filter(cell => 
-                cell[cell.length - 1].slice(0, -1) === firstNoteCurrent
+                getCellLastPitchClass(cell) === firstNoteCurrent
             );
             console.log('Found', compatibleCellsUp6.length, 'compatible cells in CELLS_up6');
             
@@ -1983,14 +1944,14 @@ function generateTritoneSub25MajorPhrase(keyName) {
             
             const cellUp6 = new Cycler(compatibleCellsUp6).nextItem();
             const adjustedCellUp6 = adjustRightCell(cellUp6, phrase);
-            phrase = cellUp6.slice(0, -1).concat(adjustedCellUp6);
+            phrase = prependCell(cellUp6, adjustedCellUp6);
             
             // Position 1: Uses CELLS2 - standard cells with no filtering
             const firstNoteCurrent2 = phrase[0].slice(0, -1);
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent2, 'in CELLS2');
             
             const compatibleCells2 = CELLS2.filter(cell => 
-                cell[cell.length - 1].slice(0, -1) === firstNoteCurrent2
+                getCellLastPitchClass(cell) === firstNoteCurrent2
             );
             console.log('Found', compatibleCells2.length, 'compatible cells in CELLS2');
             
@@ -2002,14 +1963,14 @@ function generateTritoneSub25MajorPhrase(keyName) {
             
             const cell2 = new Cycler(compatibleCells2).nextItem();
             const adjustedCell2 = adjustRightCell(cell2, phrase);
-            phrase = cell2.slice(0, -1).concat(adjustedCell2);
+            phrase = prependCell(cell2, adjustedCell2);
             
             // Position 0 (Leftmost): Uses CELLS_FILTERED_NO_E - cells that don't start with E
             const firstNoteCurrent3 = phrase[0].slice(0, -1);
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent3, 'in CELLS_FILTERED_NO_E');
             
             const compatibleCellsFiltered = window.CELLS_FILTERED_NO_E.filter(cell => 
-                cell[cell.length - 1].slice(0, -1) === firstNoteCurrent3
+                getCellLastPitchClass(cell) === firstNoteCurrent3
             );
             console.log('Found', compatibleCellsFiltered.length, 'compatible cells in CELLS_FILTERED_NO_E');
             
@@ -2021,7 +1982,7 @@ function generateTritoneSub25MajorPhrase(keyName) {
             
             const cellFiltered = new Cycler(compatibleCellsFiltered).nextItem();
             const adjustedCellFiltered = adjustRightCell(cellFiltered, phrase);
-            phrase = cellFiltered.slice(0, -1).concat(adjustedCellFiltered);
+            phrase = prependCell(cellFiltered, adjustedCellFiltered);
             
             // Validate the final phrase
             if (phrase.length === 17) {
@@ -2075,7 +2036,7 @@ function generateTritoneSub25MinorPhrase(keyName) {
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent, 'in CELLS_down2');
             
             const compatibleCellsDown2 = window.CELLS_down2.filter(cell => 
-                cell[cell.length - 1].slice(0, -1) === firstNoteCurrent
+                getCellLastPitchClass(cell) === firstNoteCurrent
             );
             console.log('Found', compatibleCellsDown2.length, 'compatible cells in CELLS_down2');
             
@@ -2087,14 +2048,14 @@ function generateTritoneSub25MinorPhrase(keyName) {
             
             const cellDown2 = new Cycler(compatibleCellsDown2).nextItem();
             const adjustedCellDown2 = adjustRightCell(cellDown2, phrase);
-            phrase = cellDown2.slice(0, -1).concat(adjustedCellDown2);
+            phrase = prependCell(cellDown2, adjustedCellDown2);
             
             // Position 1: Uses CELLSM5
             const firstNoteCurrent2 = phrase[0].slice(0, -1);
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent2, 'in CELLSM5');
             
             const compatibleCellsM5 = window.CELLSM5.filter(cell => 
-                cell[cell.length - 1].slice(0, -1) === firstNoteCurrent2
+                getCellLastPitchClass(cell) === firstNoteCurrent2
             );
             console.log('Found', compatibleCellsM5.length, 'compatible cells in CELLSM5');
             
@@ -2106,14 +2067,14 @@ function generateTritoneSub25MinorPhrase(keyName) {
             
             const cellM5 = new Cycler(compatibleCellsM5).nextItem();
             const adjustedCellM5 = adjustRightCell(cellM5, phrase);
-            phrase = cellM5.slice(0, -1).concat(adjustedCellM5);
+            phrase = prependCell(cellM5, adjustedCellM5);
             
             // Position 0 (Leftmost): Uses CELLSM5
             const firstNoteCurrent3 = phrase[0].slice(0, -1);
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent3, 'in CELLSM5');
             
             const compatibleCellsM5_2 = window.CELLSM5.filter(cell => 
-                cell[cell.length - 1].slice(0, -1) === firstNoteCurrent3
+                getCellLastPitchClass(cell) === firstNoteCurrent3
             );
             console.log('Found', compatibleCellsM5_2.length, 'compatible cells in CELLSM5');
             
@@ -2125,7 +2086,7 @@ function generateTritoneSub25MinorPhrase(keyName) {
             
             const cellM5_2 = new Cycler(compatibleCellsM5_2).nextItem();
             const adjustedCellM5_2 = adjustRightCell(cellM5_2, phrase);
-            phrase = cellM5_2.slice(0, -1).concat(adjustedCellM5_2);
+            phrase = prependCell(cellM5_2, adjustedCellM5_2);
             
             // Validate the final phrase
             if (phrase.length === 17) {
@@ -2165,13 +2126,13 @@ function generateShortIVIVPhrase(keyName) {
         const firstNoteCurrent = phrase[0].slice(0, -1);
         console.log('Looking for cells ending with pitch class:', firstNoteCurrent, 'in MAJOR_CELLS_up5');
         
-        const compatibleCells = window.MAJOR_CELLS_up5.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+        const compatibleCells = window.MAJOR_CELLS_up5.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
         console.log('Found', compatibleCells.length, 'compatible cells in MAJOR_CELLS_up5');
         
         if (compatibleCells.length > 0) {
             const leftCell = new Cycler(compatibleCells).nextItem();
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
             
             if (phrase.length === 9) {
                 return { phrase: phrase, length: phrase.length };
@@ -2220,7 +2181,7 @@ function generateIVIVPhrase(keyName) {
             const firstNoteCurrent = phrase[0].slice(0, -1);
             console.log('Looking for cells ending with pitch class:', firstNoteCurrent, 'in', cellSetName);
             
-            const compatibleCells = cellSet.filter(cell => cell[cell.length - 1].slice(0, -1) === firstNoteCurrent);
+            const compatibleCells = cellSet.filter(cell => getCellLastPitchClass(cell) === firstNoteCurrent);
             console.log('Found', compatibleCells.length, 'compatible cells in', cellSetName);
             
             if (compatibleCells.length === 0) {
@@ -2242,7 +2203,7 @@ function generateIVIVPhrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCellsPerSet[cellSetName].add(leftCell.join(' ')); // Mark this cell as used in this set
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
         }
         
         if (validPhrase && phrase.length === 17) {
@@ -2278,7 +2239,7 @@ function generateShortIV7ToIvSharpDimPhrase(keyName) {
         console.log('Looking for cells ending with pitch class:', firstNoteCurrent, 'in CELLS2_up5');
         
         const compatibleCells = window.CELLS2_up5.filter(cell => {
-            const endNote = cell[cell.length - 1].slice(0, -1);
+            const endNote = getCellLastPitchClass(cell);
             const startsWithBb = cell[0].slice(0, -1) === 'Bb';
             
             // Handle enharmonic equivalents
@@ -2296,7 +2257,7 @@ function generateShortIV7ToIvSharpDimPhrase(keyName) {
         if (compatibleCells.length > 0) {
             const leftCell = new Cycler(compatibleCells).nextItem();
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
             
             if (phrase.length === 9) {
                 console.log('Successfully generated short IV7 to #iv° phrase:', phrase);
@@ -2356,7 +2317,7 @@ function generateLongIV7ToIvSharpDimPhrase(keyName) {
             console.log(`Looking for cells ending with pitch class: ${firstNoteCurrent} in ${cellSetName} (position ${position})`);
             
             const compatibleCells = cellSet.filter(cell => {
-                const endNote = cell[cell.length - 1].slice(0, -1);
+                const endNote = getCellLastPitchClass(cell);
                 
                 // Handle enharmonic equivalents
                 const endsWithCorrectNote = endNote === firstNoteCurrent || 
@@ -2416,7 +2377,7 @@ function generateLongIV7ToIvSharpDimPhrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCellsPerSet[cellSetName].add(leftCell.join(' ')); // Mark this cell as used in this set
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
             
             console.log(`Added position ${position} cell, phrase length now: ${phrase.length}`);
         }
@@ -2466,7 +2427,7 @@ function generateShortIvSharpHalfDimToVii7Phrase(keyName) {
         console.log('Looking for cells ending with pitch class:', firstNoteCurrent, 'in CELLS2_up2 + extra cells');
         
         const compatibleCells = allLeftCells.filter(cell => {
-            const endNote = cell[cell.length - 1].slice(0, -1);
+            const endNote = getCellLastPitchClass(cell);
             const startsWithG = cell[0].slice(0, -1) === 'G';
             
             // Handle enharmonic equivalents
@@ -2507,7 +2468,7 @@ function generateShortIvSharpHalfDimToVii7Phrase(keyName) {
             
             const leftCell = new Cycler(compatibleCellsFiltered).nextItem();
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
             
             if (phrase.length === 9) {
                 console.log('Successfully generated short #ivø7 to VII7 phrase:', phrase);
@@ -2577,7 +2538,7 @@ function generateLongIvSharpHalfDimToVii7Phrase(keyName) {
             console.log(`Looking for cells ending with pitch class: ${firstNoteCurrent} in ${cellSetName} (position ${position})`);
             
             const compatibleCells = cellSet.filter(cell => {
-                const endNote = cell[cell.length - 1].slice(0, -1);
+                const endNote = getCellLastPitchClass(cell);
                 
                 // Handle enharmonic equivalents
                 const endsWithCorrectNote = endNote === firstNoteCurrent || 
@@ -2616,7 +2577,7 @@ function generateLongIvSharpHalfDimToVii7Phrase(keyName) {
             const leftCell = new Cycler(unusedCompatibleCells).nextItem();
             usedCellsPerSet[cellSetName].add(leftCell.join(' ')); // Mark this cell as used in this set
             const adjustedNewCell = adjustRightCell(leftCell, phrase);
-            phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+            phrase = prependCell(leftCell, adjustedNewCell);
             console.log(`Added ${cellSetName} cell at position ${position}, phrase length now: ${phrase.length}`);
         }
         
@@ -2673,14 +2634,14 @@ function generateD7ToDbPhrase(keyName) {
             
             // Position 3 filter: only cells ending with C or G (in the transposed key)
             const filteredMAJOR_CELLS_down4 = window.MAJOR_CELLS_down4.filter(cell => {
-                const lastNote = cell[cell.length - 1].slice(0, -1); // Remove octave
+                const lastNote = getCellLastPitchClass(cell); // Remove octave
                 return lastNote === 'C' || lastNote === 'G';
             });
             
             // Position 0 filter: exclude cells starting with G AND ensure they end with C or G (in the transposed key)
             const filteredCELLS_up2 = window.CELLS_up2.filter(cell => {
                 const firstNote = cell[0].slice(0, -1); // Remove octave
-                const lastNote = cell[cell.length - 1].slice(0, -1); // Remove octave
+                const lastNote = getCellLastPitchClass(cell); // Remove octave
                 return firstNote !== 'G' && (lastNote === 'C' || lastNote === 'G');
             });
             
@@ -2713,7 +2674,7 @@ function generateD7ToDbPhrase(keyName) {
                 console.log(`Looking for ${positionName} cells ending with pitch class:`, firstNoteCurrent);
                 
                 const compatibleCells = cellSet.filter(cell => 
-                    cell[cell.length - 1].slice(0, -1) === firstNoteCurrent
+                    getCellLastPitchClass(cell) === firstNoteCurrent
                 );
                 
                 if (compatibleCells.length === 0) {
@@ -2724,7 +2685,7 @@ function generateD7ToDbPhrase(keyName) {
                 console.log(`${positionName}:`, leftCell, 'ends with:', leftCell[leftCell.length - 1], 'connects to phrase starting with:', firstNoteCurrent);
                 
                 const adjustedNewCell = adjustRightCell(leftCell, phrase);
-                phrase = leftCell.slice(0, -1).concat(adjustedNewCell);
+                phrase = prependCell(leftCell, adjustedNewCell);
                 console.log(`Added ${positionName}:`, leftCell.slice(0, -1), 'phrase now:', phrase);
             }
             

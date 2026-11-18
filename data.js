@@ -24,90 +24,125 @@ const BASE_CELLS = [
     ["F#4", "A4", "G#4", "F#4", "G4"],
     ["D4", "F4", "F#4", "A4", "G4"],
     ["G4", "A4", "Bb4", "C5", "D5"],
-    ["G4", "F4", "E4", "D4", "C4"],
+    //["G4", "F4", "E4", "D4", "C4"],
     ["G4", "Bb4", "D5", "F5", "E5"],
     ["D5", "Ab4", "A4", "C5", "Bb4"],
     ["G4", "F4", "E4", "F4", "D4"],
     ["D5", "Bb4", "A4", "G4", "C5"],
     ["D5", "Bb4", "G4", "F4", "E4"],
-    ["Bb3", "C4", "D4", "E4", "F4"],
-    ["C5", "B4", "Bb4", "D4", "F4"],
+    //["Bb3", "C4", "D4", "E4", "F4"],
     ["F4", "F#4", "A4", "Ab4", "G4"],
-    // Note: Commented out cell ["F4", "D4", "Bb3", "G3", "E4"] was already removed
-    ["F4", "D4", "C4", "Bb3", "A3"],
-    ["Bb3", "C4", "D4", "F4", "F#4"],
+    ["F4", "D4", "Bb3", "G3", "E4"],
     //["Bb4", "A4", "G4", "F4", "F#4"],
     ["F#4", "A4", "G4", "F4", "E4"],
     ["F#4", "A4", "G4", "E4", "C4"],
-    ["A4", "Bb4", "D5", "F5", "F#5"],
     //7.12
-    ["Bb4","F#4","A4","Ab4","G4"],
+    //["Bb4","F#4","A4","Ab4","G4"],
     ["A4","G4","D4","F4","E4"],
-    ["A4","G4","D4","F4","F#4"],
-    ["C5", "B4", "Bb4", "F4", "F#4"],
     ["C5","B4","Bb4","C5","D5"],
     //7.20
     ["Bb4", "D4", "Db4", "D4", "A4"],
     ["Bb3", "F4", "D4", "Bb3", "A3"],
     //7.24
-    ["F#4", "D4", "F4", "Eb4", "E4"],
+    //["F#4", "D4", "F4", "Eb4", "E4"],
     //8.21
     //["E4","F4","E4","D4","C4"],
     //8.27
     ["Bb4","D5","A4","G4","C5"],
     ["C5","Bb4","D4","F4","A4"],
     //["A4","F#4","G4","F4","D4"],
-    ["A4","F#4","G4","Bb3","D4"],
-    ["F4","A4","G4","Bb3","D4"],
-    ["D4","F4","E4","G3","Bb3"],
-    ["Bb3","D4","F4","A4","G4"],
-    ["G4","Bb3","D4","F4","E4"],
-    ["E5","G4","Bb4","D5","C5"],
+    //["A4","F#4","G4","Bb3","D4"],
     //9.1
-    ["Bb4","Db4","D4","A4","G4"],
     //9.2
     ["Bb4","F#4","A4","G4","D4"],
     ["D5","A4","C5","Bb4","F#4"],
     //["F#4","A4","G4","D4","Bb3"],
-    ["C5","A4","Bb4","D4","F#4"],
-    ["A4","C5","Bb4","D4","A4"],
-    ["A4","F#4","G4","A4","Bb4"],
-    ["A4","F#4","G4","F4","E4"],
+    ["A4","F#4","G4","A4","Bb4"], 
+    ["A4","F#4","G4","F4","E4"], 
     ["Bb4","C5","D5","Bb4","A4"],
-    ["A4","G4","F#4","D4","F4"],
-    ["F4","Eb4","E4","G4","Bb4"],
     ["D4","E4","F4","F#4","A4"],
-    ["A4","Ab4","G4","D4","F4"],
-    ["F4","G4","E4","D4","C4"],
-    ["C5","G4","Bb4","D5","A4"],
+    //["A4","Ab4","G4","D4","F4"],
+    //["F4","G4","E4","D4","C4"],
+    //["C5","G4","Bb4","D5","A4"],
     ["Bb4","D4","Eb4","E4","A4"],
     ["G4","D4","Bb3","G3","A3"],
-    ["G4","D4","F4","A4","E4"],
-    ["G4","Bb4","A4","G4","C5"],
+    //["G4","D4","F4","A4","E4"],
+    //["G4","Bb4","A4","G4","C5"], resolution cell
     //9.5
-    ["Bb5","G5","F5","Eb5","E5"],
-    ["F#5","G5","D5","C5","Bb4"],
-    ["F#4","G4","A4","Bb4","C5"],
-    ["A4","Bb4","C5","C#5","D5"],
-    ["C5","C#5","D5","Bb4","G4"],
+    //["Bb5","G5","F5","Eb5","E5"],
+    //["F#4","G4","A4","Bb4","C5"],
+    //["A4","Bb4","C5","C#5","D5"],
 
+    //2026.11.17
+/*
+
+    ["C5", "B4", "Bb4", "D4", "F4"], //new
+    ["F4", "D4", "C4", "Bb3", "A3"], //new
+    ["Bb3", "C4", "D4", "F4", "F#4"], //new
+    ["A4", "Bb4", "D5", "F5", "F#5"], //new
+    ["A4","G4","D4","F4","F#4"], //new
+    ["C5", "B4", "Bb4", "F4", "F#4"], //new
+    ["F4","A4","G4","Bb3","D4"],//new
+    ["D4","F4","E4","G3","Bb3"],//new
+    ["Bb3","D4","F4","A4","G4"],//new
+    ["G4","Bb3","D4","F4","E4"],//new
+    ["E5","G4","Bb4","D5","C5"],//new
+    ["Bb4","Db4","D4","A4","G4"],//new
+    ["C5","A4","Bb4","D4","F#4"], //new
+    ["A4","C5","Bb4","D4","A4"], //new
+    ["A4","G4","F#4","D4","F4"], //new
+    ["F4","Eb4","E4","G4","Bb4"], //new
+    ["F#5","G5","D5","C5","Bb4"],//new
+    ["C5","C#5","D5","Bb4","G4"],//new
+
+*/
+
+    ["F#5","G5","Ab5","A5","C6"],
+    ["Db5", "D5", "Bb4", "G4","C5"],
+    ["Db5", "D5", "A4", "C5", "Bb4"],
+    //["A4","Ab4","G4","F4","D4"],
+    ["Bb4","D4","F4","G4","E4"],
+    ["A4","Bb4","G4","Ab4","A4"],
+    ["C5","Bb4","F#4","A4","G4"]
 
 ];
 
 // Additional cells unique to CELLS2 (these are only in CELLS2, not in base CELLS)
 const BASE_CELLS2_ADDITIONAL = [
-    ["D5", "Bb4", "A4", "G4", "F#4"],
-    ["G4", "A4", "Bb4", "C5", "Db5"],
-    ["G4", "A4", "Bb4", "C5", "Eb5"],
-    ["C5", "Bb4", "A4", "Bb4", "Eb5"],
-    ["G4", "F4", "E4", "F4", "Db4"],
-    ["D5", "Bb4", "A4", "G4", "Ab4"],
-    ["C5", "B4", "Bb4", "A4", "Ab4"],
-    ["Bb3", "D4", "F4", "A4", "Ab4"],
-    ["Bb4", "D4", "F4", "A4", "Ab4"],
-    ["D4", "F4", "F#4", "A4", "Ab4"],
+    //["D5", "Bb4", "A4", "G4", "F#4"],//new
+    //["G4", "A4", "Bb4", "C5", "Db5"],
+    //["G4", "F4", "E4", "F4", "Db4"],
+    //["D5", "Bb4", "A4", "G4", "Ab4"],
+    //["C5", "B4", "Bb4", "A4", "Ab4"],
+    //["Bb3", "D4", "F4", "A4", "Ab4"],
+    //["D4", "F4", "F#4", "A4", "Ab4"],
     //8.27
-    ["E4","G3","Bb3","C4","Db4"]
+    
+
+    //2026.11.17
+    ["A4", "C5", "A4", "Bb4", "F#4"],
+    ["D5", "A4", "C5", "Bb4", "F#4"],
+    ["D5", "Bb4", "G4", "D4", "F#4"],
+    ["A4", "C5", "Bb4", "A4", "Ab4"],
+    ["D4", "F4", "A4", "G4", "Ab4"],
+    ["Bb4", "D4", "F4", "A4", "Ab4"],
+    ["E4","G3","Bb3","C4","Db4"],
+    ["E3","G3","Bb3","C4","Db4"],
+    ["A4", "C5", "A4", "Bb4", "Db5"],
+
+
+
+
+    
+    //these two to the #9 can't follow resolution cells that go up
+    ["G4", "A4", "Bb4", "C5", "Eb5"],//new
+    //["C5", "Bb4", "A4", "Bb4", "Eb5"],//new
+
+
+    ["C5", "A4", "Bb4", "Eb5", "x"],
+    ["D4", "A4", "G4", "Eb4", "x"],
+
+
 ];
 
 // Base cells for major phrases (C major cells)
@@ -164,7 +199,7 @@ const BASE_MAJOR_CELLS = [
 
 // Base cells for major resolution (C dominant resolving to F major)
 const BASE_MAJOR_RESOLUTION_CELLS = [
-    ["C5", "Bb4", "Eb5", "Db5", "C5"],
+    
     ["C5", "Ab4", "E4", "C4", "G4"],
     ["E4", "Db4", "C4", "Bb3", "A3"],
     ["E4", "Db5", "C5", "Bb4", "A4"],
@@ -185,13 +220,38 @@ const BASE_MAJOR_RESOLUTION_CELLS = [
     //["A4", "G4", "Eb4", "E4", "G4"],
     ["A4", "Ab4", "E4", "Db4", "C4"],
     ["Ab4", "E4", "Eb4", "Db4", "C4"],
-    ["Ab4", "E5", "Eb5", "Db5", "C5"],
+    //["Ab4", "E5", "Eb5", "Db5", "C5"],
     //9.1
-    ["Bb4","A4","Eb4","E4","G4"],
-    ["Bb4","C4","Db4","A4","G4"],
+
     //9.2
-    ["Bb4", "C5","Db5","B4","C5"],
-    ["Db4","Bb4","A4","E4","G4"],
+    //["Bb4", "C5","Db5","B4","C5"],
+    //["Db4","Bb4","A4","E4","G4"],
+
+    //2026.11.17
+/*
+    ["C5", "Bb4", "Eb5", "Db5", "C5"],//new
+    ["Bb4","A4","Eb4","E4","G4"],//new
+    ["Bb4","C4","Db4","A4","G4"],//new
+
+*/
+
+    ["Eb4", "C4", "Db4", "Eb4", "C4"],
+    ["Db3", "E4", "A4", "Ab4", "G4"],
+    ["Db5", "E4", "A4", "Db5", "C5"],
+    ["C5", "Bb4", "F#4", "G4", "A4"],
+    ["C5", "Bb4", "Ab4", "E4", "G4"],
+    ["G4", "C4", "D4", "E4", "G4"],
+    ["Bb4", "C5", "Db5", "Eb5", "C5"],
+    ["G4","Bb4","A4","G4","C5"],
+
+    // Empty tail: 5th element "x" — final note tied, no overlap to next cell
+    ["E4", "A4", "E4", "G4", "x"],
+    ["Bb4", "A4", "G4", "C5", "x"],
+    ["A4", "C5", "Ab4", "G4", "x"],
+    ["A4", "E4", "F4", "G4", "x"],
+    ["Ab4", "E4", "F4", "G4", "x"],
+    ["Ab4", "Eb5", "Db5", "C5", "x"],
+
 ];
 
 // Base cells for minor phrases (original cells)
@@ -202,32 +262,14 @@ const BASE_MINOR_B_CELLS_ORIGINAL = [
     ["A4", "C5", "B4", "A4", "G#4"],
     ["F4", "D4", "B3", "A3", "G#3"],
     ["B4", "F4", "A4", "G4", "G#4"],
-    //7.12
-    //["G4", "F#4", "F4", "G4", "E4"],
-    //["F4", "G4", "A4", "C5", "E5"],
-    //["D4", "F4", "A4", "C5", "E5"],
-
-    //["F4", "E4", "D4", "C4", "B3"],
-    //["F4", "G4", "A4", "C5", "B4"],
-    //["D4", "A3", "C4", "A3", "B3"],
-    //["A3", "C4", "A3", "A#3", "B3"],
-
-    //["G4","F#4","F4","E4","D4"],
-    //["F4","C4","C#4","E4","D4"],
-    //["A4","C5","C#5","E5","D5"],
-    //["E4","F4","C#4","E4","D4"],
-    //8.5
-    //["E5", "D5", "B4", "A4", "G#4"],
-    //8.14
-    ["F4","G4","E4","D4","C4"],
-
-
 ];
 
 // Base cells for minor phrases (will be initialized with original + BASE_CELLS down a perfect fourth)
 let BASE_MINOR_B_CELLS = [...BASE_MINOR_B_CELLS_ORIGINAL];
 
 const BASE_MINOR_C_CELLS = [
+
+/*
     ["G#4", "F4", "E4", "D4", "C4"],
     ["G#3", "F4", "E4", "D4", "C4"],
     ["G#3", "B3", "E4", "D4", "C4"],
@@ -240,24 +282,44 @@ const BASE_MINOR_C_CELLS = [
     ["E5","C5","G#4","F4","E4"],
     ["E5","A#4","B4","D5","C5"],
 
-    ["B3", "C4", "G#3", "F3", "E3"],
+    //["B3", "C4", "G#3", "F3", "E3"],
 
     ["D4", "C4", "G#3", "E3", "B3"],
     ["D4", "C4", "G#3", "F3", "E3"],
     //7.31
-    ["F5","G5","E5","D5","C5"],
+    //["F5","G5","E5","D5","C5"],
     //["G5","F5","E5","D5","C5"],
 
     ["G5","F5","C5","G#4","E5"],
-    ["G5","F5","C5","D5","E5"],
+    //["G5","F5","C5","D5","E5"],
 
     ["C5","G#4","G4","F4","E4"],
-    ["C5","G#4","F4","D4","E4"],
+    //["C5","G#4","F4","D4","E4"],
     //8.27
     ["G#3","F4","E4","B3","D4"],
+    ["G#3","A3","Bb3","B3","D4"],
     //9.1
     ["F4","E4","Bb3","B3","D4"],
     ["F4","G3","Ab3","E4","D4"],
+
+*/
+
+    //2026.11.17
+    ["G4", "F4", "E4", "D4", "B3"],
+    ["F4", "E4", "Eb4", "E4", "G4"],
+    ["F4", "G4", "E4", "B3", "D4"],
+    ["E3", "E4", "B3", "D4", "C4"],
+
+    //new
+    //["G4", "Ab4", "G4", "F4", "E4"],
+    ["F4", "D4", "E4", "D4", "C4"],
+    //["E3", "F3", "E3", "D3", "C3"],
+    ["E3", "B2", "D3", "E3", "C3"],
+
+    ["D4", "C4", "B3", "A3", "C4"],
+
+    ["E4", "B3", "C4", "D4", "x"],
+    ["B3", "E4", "B3", "D4", "x"],
 ];
 
 // Base turnaround cells
@@ -404,8 +466,8 @@ function initializeTransposedCells() {
     
     // Use the transposeNote function from music-utils.js
     function transposeCells(baseCells, semitones, key = "C") {
-        return baseCells.map(cell => 
-            cell.map(note => transposeNote(note, semitones, key))
+        return baseCells.map(cell =>
+            cell.map(note => (note === "x" || note === "X") ? note : transposeNote(note, semitones, key))
         );
     }
     
@@ -847,6 +909,20 @@ window.KEY_CHORD_MAP = {
 
 // Functions from data.py line 318 onwards - EXACT MATCH TO PYTHON
 
+// Half-dim display prefers flat key names for Eb/Bb even when phrase uses sharps
+function normalize_7sus4_half_dim_display_key(key) {
+    if (key === "D#") return "Eb";
+    if (key === "A#") return "Bb";
+    return key;
+}
+
+// Map flat half-dim designate keys to the sharp names stored in KEY_CHORD_MAP
+function half_dim_lookup_keys(target_key) {
+    if (target_key === "Eb") return ["Eb", "D#"];
+    if (target_key === "Bb") return ["Bb", "A#"];
+    return [target_key];
+}
+
 function get_7sus4_chord_display(key, chord_type) {
     /**Generate chord display based on selected key and chord type*/
     if (chord_type === "minor") {
@@ -854,7 +930,8 @@ function get_7sus4_chord_display(key, chord_type) {
     } else if (chord_type === "dominant") {
         return `in the key of ${key}7`;
     } else if (chord_type === "half_dim") {
-        return `in the key of ${key}ø7`;
+        const displayKey = normalize_7sus4_half_dim_display_key(key);
+        return `in the key of ${displayKey}ø7`;
     } else if (chord_type === "altered") {
         return `in the key of ${key}7Alt`;
     }
@@ -864,16 +941,16 @@ function get_7sus4_chord_display(key, chord_type) {
 
 function find_7sus4_generation_key(target_key, chord_type) {
     /**Find which key's 7sus4 phrase should be used to generate phrases for the target chord*/
-    // Create the target chord string
-    let target_chord;
+    // Create candidate target chord strings (half-dim allows Eb/Bb ↔ D#/A#)
+    let target_chords;
     if (chord_type === "minor") {
-        target_chord = `${target_key}m`;
+        target_chords = [`${target_key}m`];
     } else if (chord_type === "dominant") {
-        target_chord = `${target_key}7`;
+        target_chords = [`${target_key}7`];
     } else if (chord_type === "half_dim") {
-        target_chord = `${target_key}ø7`;
+        target_chords = half_dim_lookup_keys(target_key).map(k => `${k}ø7`);
     } else if (chord_type === "altered") {
-        target_chord = `${target_key}7Alt`;
+        target_chords = [`${target_key}7Alt`];
     } else {
         return target_key;
     }
@@ -882,7 +959,7 @@ function find_7sus4_generation_key(target_key, chord_type) {
     for (const [generation_key, chord_text] of Object.entries(window.KEY_CHORD_MAP["7sus4"])) {
         if (chord_text.includes("usable on ")) {
             const chords = chord_text.replace("usable on ", "").split(", ");
-            if (chords.includes(target_chord)) {
+            if (target_chords.some(tc => chords.includes(tc))) {
                 return generation_key;
             }
         }
@@ -913,7 +990,7 @@ function find_7sus4_target_key_for_display(generation_key, chord_type) {
         } else if (chord_type === "dominant" && chord.endsWith("7") && !chord.endsWith("ø7") && !chord.endsWith("Alt")) {
             return chord.slice(0, -1); // Remove '7' suffix
         } else if (chord_type === "half_dim" && chord.endsWith("ø7")) {
-            return chord.slice(0, -2); // Remove 'ø7' suffix
+            return normalize_7sus4_half_dim_display_key(chord.slice(0, -2)); // Keep Eb/Bb names
         } else if (chord_type === "altered" && chord.endsWith("Alt")) {
             return chord.slice(0, -4); // Remove '7Alt' suffix
         }
@@ -940,7 +1017,7 @@ for (const key of Object.keys(window.KEY_CHORD_MAP["7sus4"])) {
 // Random Cycler for 7sus4 chord types (from random_cycler.py)
 class Random7sus4Cycler {
     constructor() {
-        this.chord_types = ["7sus4_minor", "7sus4_dominant", "7sus4_half_dim", "7sus4_altered"];
+        this.chord_types = ["7sus4_minor", "7sus4_dominant", "7sus4_half_dim"];
         this.current_round = [];
         this.current_index = 0;
         this.round_count = 0;
